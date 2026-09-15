@@ -1,0 +1,1 @@
+The baseline had usage 10913 and the trajectory with compaction used 10399 tokens
