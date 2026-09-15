@@ -92,7 +92,7 @@ class CodeAgent(Agent):
                 content = ""
                 if tool_name == "execute":
                     output = self.env.execute(**args).get("output", "")
-                    content = self.format_tool_output(output)
+                    content = str(output)
                 elif tool_name == "send_message":
                     summary = args.get("summary", "")
                     content = str(summary)
