@@ -363,7 +363,7 @@ class Agent:
         compacted_context = compaction_response.choices[0].message.content or ""
         working_memory = {
             "role": "user",
-            "content": f"<working_memory>{compacted_context}</working_memory>"
+            "content": f"Task objective: {self.task_prompt}\n\nHistory to summarize: <working_memory>{compacted_context}</working_memory>"
         }
         self.messages = [working_memory, *suffix]
 
