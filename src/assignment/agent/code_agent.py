@@ -12,6 +12,7 @@ from assignment.agent.base import (
 )
 from assignment.agent.tools import EXECUTE_TOOL, SEND_MESSAGE_TOOL
 from assignment.env import Environment
+from assignment.agent.base import format_tool_output
 
 class CodeAgent(Agent):
     """An agent that fixes a software issue and submits a git patch."""
@@ -92,7 +93,7 @@ class CodeAgent(Agent):
                 content = ""
                 if tool_name == "execute":
                     output = self.env.execute(**args).get("output", "")
-                    content = str(output)
+                    content = format_tool_output(output)
                 elif tool_name == "send_message":
                     summary = args.get("summary", "")
                     content = str(summary)
