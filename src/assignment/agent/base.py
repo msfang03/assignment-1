@@ -346,7 +346,7 @@ class Agent:
         suffix = self.messages[split_idx:]
         prefix = self.messages[:split_idx]
 
-        user_content = f"Summarize the following into concise factual working memory: \n\n{json.dumps(prefix, indent=1)}."
+        user_content = f"Task objective: {self.task_prompt}\n\nSummarize the following into concise factual working memory: \n\n{json.dumps(prefix, indent=1)}."
 
         compaction_prompt = [{"role": "system", "content": COMPACTION_SYSTEM_PROMPT},
                              {"role": "user", "content": user_content} 
@@ -363,7 +363,7 @@ class Agent:
         compacted_context = compaction_response.choices[0].message.content or ""
         working_memory = {
             "role": "user",
-            "content": f"Task objective: {self.task_prompt}\n\nHistory to summarize: <working_memory>{compacted_context}</working_memory>"
+            "content": f"<working_memory>{compacted_context}</working_memory>"
         }
         self.messages = [working_memory, *suffix]
 
