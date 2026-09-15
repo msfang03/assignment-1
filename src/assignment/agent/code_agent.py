@@ -79,6 +79,7 @@ class CodeAgent(Agent):
         # response!). Malformed JSON and unknown tools must become recoverable
         # observations relayed to the agent instead of exceptions.
         observations = []
+
         for tool_call in tool_calls:
             call_id = tool_call.get("id", "")
             function = tool_call.get("function", {})
