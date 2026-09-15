@@ -45,11 +45,29 @@ class CodeAgent(Agent):
 
         # TODO(Part 1.3): Make the `execute` and `send_message` tools available
         # to the agent.
+        self.tools.append(EXECUTE_TOOL)
+        self.tools.append(SEND_MESSAGE_TOOL)
 
         # TODO(1.1.b): Construct the system prompt and task_prompt. These
         # should be usable by the `Agent.build_prompt` method.
+        self.task_prompt = self.task
+        system_info = {"machine": self.env.machine,
+                        "release": self.env.release,
+                        "system": self.env.system,
+                        "version": self.env.version
+                        }
+        standing_instructions = ("You are an autonomous software engineering agent "
+                                 "Your task is to resolve software issues by exploring the repository "
+                                 "reproducing the problem, making necessary code modifications, and running "
+                                 "tests to verify it ")
+
+        self.system_prompt = f"{standing_instructions}\n\n<system_information>\n{json.dumps(system_info, indent=2)}\n</system_information>"
         # TODO(1.4): If any skills are available to the agent, make their
         # descriptions/metadata available to the agent in the prompt.
+        if self.skills:
+            skill_descriptions = "\n\n".join(skill["metadata"] for skill in self.skills.values())
+            self.system_prompt += f"\n\nAvailable Skills: \n{skill_descriptions}"
+
 
     def execute_tool_calls(
         self, tool_calls: list[dict[str, Any]]
@@ -60,4 +78,44 @@ class CodeAgent(Agent):
         # one message per call (there may be multiple tool calls in one agent
         # response!). Malformed JSON and unknown tools must become recoverable
         # observations relayed to the agent instead of exceptions.
-        raise NotImplementedError
+        observations = []
+        for tool_call in tool_calls:
+            call_id = tool_call.get("id", "")
+            function = tool_call.get("function", {})
+            arguments = function.get("arguments", "{}")
+            try:
+                args = json.loads(arguments)
+                if not isinstance(args, dict):
+                    raise TypeError(f"Tool arguments must decode to a JSON object, got {type(args).__name__}")
+                tool_name = function.get("name", "")
+                content = ""
+                if tool_name == "execute":
+                    output = self.env.execute(**args).get("output", "")
+                    content = str(output)
+                elif tool_name == "send_message":
+                    summary = args.get("summary", "")
+                    content = str(summary)
+                elif tool_name == "invoke_skill":
+                    name = args.get("name", "")
+                    if name in self.skills:
+                        content = str(self.skills[name])
+                    else:
+                        content = f"Error: Skill {name} not found"
+                else:
+                    content = "Unrecognized Tool Call"
+
+                message = {
+                            "role":"tool",
+                            "tool_call_id":call_id,
+                            "content":content
+                        }
+                observations.append(message)
+            except (json.JSONDecodeError, TypeError) as e:
+                message = {
+                        "role": "tool",
+                        "tool_call_id":call_id,
+                        "content": f"Malformed JSON arguments: {e}"
+                    }
+                observations.append(message)
+
+        return observations
