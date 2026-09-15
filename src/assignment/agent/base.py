@@ -31,7 +31,19 @@ MAX_OBSERVATION_CHARS = 10_000
 # TODO(Part 2): Write instructions that make the model produce concise working
 # memory for a software agent. The prompt should preserve concrete progress,
 # failures, test results, constraints, and next steps without copying raw output.
-COMPACTION_SYSTEM_PROMPT = ""
+COMPACTION_SYSTEM_PROMPT = """You are an expert context compaction assistant. Your task is to compress the provided execution history into a dense, factual working memory representation.
+
+Rules for compaction:
+1. Strict objectivity: Do not include conversational filler, introductory pleasantries, or speculative meta-commentary.
+2. Structure: Output concise, bulleted sections covering:
+   - Primary Objective & Constraints: The active task goal and any restrictions.
+   - Discovered Files & State: Key repository paths, configurations, and observed architecture.
+   - Executed Commands & Code Edits: Exact files modified, key diffs, and critical bash commands run.
+   - Concrete Results & Tests: Specific test command outputs, pass/fail statuses, and error messages.
+   - Failed Approaches & Blockers: What was tried that did not work, and why.
+   - Immediate Next Action: The concrete logical next step to continue solving the task.
+3. Density over verbosity: Omit raw command dumps, verbose tool traces, and repetitive thoughts. Retain exact identifiers, function names, file paths, line numbers, and error signatures verbatim.
+"""
 
 
 class StepLimitError(Exception):
@@ -324,9 +336,21 @@ class Agent:
         # with all linked tool observations. The resulting summary should change
         # what `build_prompt` emits, and reduce the length of the prompt.
 
-        raise NotImplementedError
-
         compaction_prompt = []
+
+        assistant_idx = [i for i, m in enumerate(self.messages) if m.get("role") == "assistant"]
+        if len(assistant_idx) <= self.compaction_keep_recent_steps:
+            split_idx = assistant_idx[0]
+        else:
+            split_idx = assistant_idx[-self.compaction_keep_recent_steps]
+        suffix = self.messages[split_idx:]
+        prefix = self.messages[:split_idx]
+
+        user_content = f"Summarize the following into concise factual working memory: \n\n{json.dumps(prefix, indent=1)}."
+
+        compaction_prompt = [{"role": "system", "content": COMPACTION_SYSTEM_PROMPT},
+                             {"role": "user", "content": user_content} 
+        ]
 
         ### Do not modify this section ###
         compaction_response = self.client.chat.completions.create(
@@ -335,6 +359,13 @@ class Agent:
             reasoning_effort="medium",
             max_completion_tokens=self.compaction_max_tokens,
         )
+
+        compacted_context = compaction_response.choices[0].message.content or ""
+        working_memory = {
+            "role": "user",
+            "content": f"<working_memory>{compacted_context}</working_memory>"
+        }
+        self.messages = [working_memory, *suffix]
 
         return compaction_prompt, compaction_response.model_dump(mode="json")
         ##################################
