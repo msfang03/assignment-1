@@ -96,6 +96,7 @@ class CodeAgent(Agent):
                 elif tool_name == "send_message":
                     summary = args.get("summary", "")
                     content = str(summary)
+                    self.finished = True
                 elif tool_name == "invoke_skill":
                     name = args.get("name", "")
                     if name in self.skills:
