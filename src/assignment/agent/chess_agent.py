@@ -211,7 +211,7 @@ class ChessAgent(Agent):
                     content = _invoke_skill(self.skills, arguments)
                 elif tool_name == "run_python":
                     runner_output = _run_python(
-                        self.environment,
+                        self.env,
                         self.python_sandbox_port,
                         arguments,
                     )
