@@ -166,26 +166,46 @@ SIMULATE_MOVE_TOOL: dict = {
     "function": {
         "name": "simulate_move",
         "description": (
-            "place holder"
+            "Simulate a move or query position details without affecting the live game board. "
+            "Passing a 6-field FEN alone returns that position and its legal moves. "
+            "Passing a FEN and a UCI move returns the resulting position after one play"
         ),
-        "strict": True,
         "parameters": {
             "type": "object",
             "properties": {
                 "fen": {
                     "type": "string",
-                    "description": "placeholder"
+                    "description": "The complete 6-field FEN string to evaluate or simulate from."
                 },
                 "move": {
                     "type": "string",
-                    "description": "placeholder"
+                    "description": "Optional UCI move string (e.g. 'e2e4', 'e7e8q') to simulate from the given FEN."
                 }
             },
-            "required": ["fen"],
-            "additionalProperties": False
+            "required": ["fen"]
         }
     }
 }
 
 # TODO()
-RUN_PYTHON_TOOL: dict = {}
+RUN_PYTHON_TOOL: dict = {
+    "type": "function",
+    "function": {
+        "name": "run_python",
+        "description": ("Run arbitrary Python 3 code in the remote sandbox environment where the chess "
+            "server runs. The sandbox environment provides synchronous helper functions "
+            "`play_move(move)` and `simulate_move(fen, move=None)` that can be called directly "
+            "within your snippet. Use this to calculate legal lines, test tactics, or execute moves."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "The Python source code to execute in the sandbox."
+                }
+            },
+            "required": ["code"],
+        }
+    }
+}

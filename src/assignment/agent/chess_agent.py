@@ -108,9 +108,13 @@ class ChessAgent(Agent):
 
         # TODO(Part 3): Register the play_move tool schema from tools.py.
         self.tools.append(PLAY_MOVE_TOOL)
+
         if programmatic_tools:
             self.tools.append(RUN_PYTHON_TOOL)
-            
+            self.tools.append(SIMULATE_MOVE_TOOL)
+
+        if self.skills:
+            self.tools.append(INVOKE_SKILL_TOOL)
 
         # run_python always executes in the sandbox, on the port the chess
         # server is listening on there.
@@ -176,18 +180,18 @@ class ChessAgent(Agent):
         # 5. Turn malformed, unknown, rejected, or extra parallel calls into
         #    recoverable <chess_error> observations instead of crashing.
         observations = []
+        registered_tools = {t["function"]["name"] for t in self.tools if "function" in t}
         move_played = False
         for call in tool_calls:
             call_id = call.get("id", "")
             function = call.get("function", {})
             arguments = function.get("arguments", "{}")
             try:
-                args = json.loads(arguments)
-                if not isinstance(args, dict):
-                    raise TypeError(f"Tool arguments must decode to a JSON object, got {type(args).__name__}")
                 tool_name = function.get("name", "")
                 content = ""
-                if tool_name == "play_move":
+                if tool_name not in registered_tools:
+                    content = f"<chess_error>Unrecognized or unregistered tool: '{tool_name}'</chess_error>"
+                elif tool_name == "play_move":
                     if move_played:
                         content = ("<chess_error>Cannot make multiple moves in parallel. Move already played this turn</chess_error>")
                     else:
@@ -201,6 +205,29 @@ class ChessAgent(Agent):
                             self.finished = bool(state.get("game_over", False))
                             content = formatted_state
                             move_played = True
+                elif tool_name == "simulate_move":
+                    content = _simulate_move(self.chess_client, arguments)
+                elif tool_name == "invoke_skill":
+                    content = _invoke_skill(self.skills, arguments)
+                elif tool_name == "run_python":
+                    runner_output = _run_python(
+                        self.environment,
+                        self.python_sandbox_port,
+                        arguments,
+                    )
+                    if runner_output.startswith("<chess_error>"):
+                        content = runner_output
+                    else:
+                        try:
+                            updated_state = _game_state(self.chess_client, reset=False)
+                            self.last_state = updated_state
+                            self.finished = bool(updated_state.get("game_over", False))
+                            content = f"{runner_output}\n\n{self.format_state(updated_state)}"
+                        except Exception as exc:
+                            content = (
+                                f"{runner_output}\n\n"
+                                f"<chess_error>Failed to refresh board state after python execution: {exc}</chess_error>"
+                            )
                 else:
                     content = "<chess_error>Unrecognized Tool Call</chess_error>"
                 obs = {
