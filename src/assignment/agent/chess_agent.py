@@ -107,9 +107,10 @@ class ChessAgent(Agent):
         )
 
         # TODO(Part 3): Register the play_move tool schema from tools.py.
-
+        self.tools.append(PLAY_MOVE_TOOL)
         if programmatic_tools:
             self.tools.append(RUN_PYTHON_TOOL)
+            
 
         # run_python always executes in the sandbox, on the port the chess
         # server is listening on there.
@@ -174,7 +175,49 @@ class ChessAgent(Agent):
         # 4. Link every observation to its call with tool_call_id.
         # 5. Turn malformed, unknown, rejected, or extra parallel calls into
         #    recoverable <chess_error> observations instead of crashing.
+        observations = []
+        move_played = False
+        for call in tool_calls:
+            call_id = call.get("id", "")
+            function = call.get("function", {})
+            arguments = function.get("arguments", "{}")
+            try:
+                args = json.loads(arguments)
+                if not isinstance(args, dict):
+                    raise TypeError(f"Tool arguments must decode to a JSON object, got {type(args).__name__}")
+                tool_name = function.get("name", "")
+                content = ""
+                if tool_name == "play_move":
+                    if move_played:
+                        content = ("<chess_error>Cannot make multiple moves in parallel. Move already played this turn</chess_error>")
+                    else:
+                        result = _play_move(self.chess_client, arguments)
+                        if result.startswith("<chess_error>"):
+                            content = result
+                        else:
+                            state = json.loads(result)
+                            formatted_state = self.format_state(state)
+                            self.last_state = state
+                            self.finished = bool(state.get("game_over", False))
+                            content = formatted_state
+                            move_played = True
+                else:
+                    content = "<chess_error>Unrecognized Tool Call</chess_error>"
+                obs = {
+                    "role": "tool",
+                    "tool_call_id": call_id,
+                    "content": content
+                }
+                observations.append(obs)
+            except (json.JSONDecodeError, TypeError) as e:
+                obs = {
+                    "role": "tool",
+                    "tool_call_id": call_id,
+                    "content": f"<chess_error>Malformed JSON arguments: {e}</chess_error>"
+                }
+                observations.append(obs)
+
+        return observations
 
         # TODO(Part 3.3-4): add cases for simulate_move and run_python, with
         # linked observations and recoverable errors, just like the old tool.
-        raise NotImplementedError

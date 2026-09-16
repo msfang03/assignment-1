@@ -52,7 +52,14 @@ def _simulate_move(client: httpx.Client, arguments: str) -> str:
     # JSON arguments, arguments that are not an object, a missing or
     # non-string fen, a non-string move, a position or move the server rejects,
     # and a transport failure.
-    raise NotImplementedError
+    try:
+        args = json.loads(arguments)
+        if not isinstance(args, dict):
+            raise TypeError(f"Tool Call arguments must decode to a JSON object, got {type(args).__name__}")
+    except Exception as e:
+        return f"<chess_error>Malformed JSON arguments, got {e}</chess_error>"
+
+    url = "/api/simulate"
 
 
 def _play_move(client: httpx.Client, arguments: str) -> str:
@@ -67,7 +74,34 @@ def _play_move(client: httpx.Client, arguments: str) -> str:
     # for the agent to address. Cover malformed JSON arguments, arguments
     # that are not an object, a missing or non-string fen, a non-string move,
     # a position or move the server rejects, and a transport failure.
-    raise NotImplementedError
+    try:
+        args = json.loads(arguments)
+        if not isinstance(args, dict):
+            raise TypeError(f"Tool Call arguments must decode to a JSON object, got {type(args).__name__}")
+    except Exception as e:
+        return f"<chess_error>Malformed JSON arguments, got {e}</chess_error>"
+
+    if "move" not in args:
+        return f"<chess_error> Missing argument move</chess_error>"
+    move = args.get("move")
+
+    if not isinstance(move, str):
+        return f"<chess_error>Given a non-string move. Move needs to be a string</chess_error>"
+
+    if "fen" in args and not isinstance(args.get("fen"), str):
+        return f"<chess_error>Missing fen or non-string fen</chess_error>"
+
+    url = "/api/move"
+
+    try:
+        state = _request_state(client, "POST", url, json={"move": move})
+        return json.dumps(state)
+    except httpx.TransportError as e:
+        return f"<chess_error>Transport failure communicating with chess server: {e}</chess_error>"
+    except (ValueError, RuntimeError) as e:
+        return f"<chess_error>{e}</chess_error>"
+    except Exception as e:
+        return f"<chess_error>Unexpected Error: {e}</chess_error>"
 
 
 def _run_python(env: Any, port: int, arguments: str) -> str:

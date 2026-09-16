@@ -133,10 +133,59 @@ INVOKE_SKILL_TOOL = {
 # TODO(3.1.a): Define an OpenAI function-tool schema named ``play_move``.
 # It must accept exactly one required string argument named ``move``, explain
 # that moves use UCI notation (for example e2e4), and reject extra arguments.
-PLAY_MOVE_TOOL: dict = {}
+PLAY_MOVE_TOOL: dict = {
+    "type": "function",
+    "function": {
+        "name": "play_move",
+        "description": (
+            "Move a piece in chess following the given move. The move is given in "
+            "UCI notation, where an 8x8 chessboard is denoted with rows 1 to 8 and"
+            "columns a to h. A location on the chessboard is depicted by a letter "
+            "and a number. A move will be two of these two locations back to back, "
+            "which means to move the piece from the first square to the second. For example "
+            "e2e4 means to move the piece at square e2 to square e4."
+        ),
+        "strict": True,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "move": {
+                    "type": "string",
+                    "description": "Chess move in UCI notation. For example e2e4."
+                }
+            },
+            "required": ["move"],
+            "additionalProperties": False
+        }
+    }
+}
 
 # TODO(3.3): Define the `simulate_move` tool, like the `play_move` tool.
-SIMULATE_MOVE_TOOL: dict = {}
+SIMULATE_MOVE_TOOL: dict = {
+    "type": "function",
+    "function": {
+        "name": "simulate_move",
+        "description": (
+            "place holder"
+        ),
+        "strict": True,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "fen": {
+                    "type": "string",
+                    "description": "placeholder"
+                },
+                "move": {
+                    "type": "string",
+                    "description": "placeholder"
+                }
+            },
+            "required": ["fen"],
+            "additionalProperties": False
+        }
+    }
+}
 
 # TODO()
 RUN_PYTHON_TOOL: dict = {}
